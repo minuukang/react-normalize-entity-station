@@ -1,0 +1,103 @@
+import { schema } from 'normalizr';
+import { act, renderHook, RenderHookResult } from '@testing-library/react-hooks';
+
+import { createEntityModel, configureNormalizeEntityStation } from './index';
+import { User, Comment, MOCK_COMMENT_DATA } from './__mocks__';
+
+describe('NormalizeEntityStation', () => {
+  describe('createEntityModel() spec', () => {
+    let schemaCreator: ReturnType<typeof createEntityModel>;
+
+    beforeEach(() => {
+      schemaCreator = createEntityModel('foo');
+    });
+
+    it('Should create function when just call createEntityModel()', () => {
+      expect(typeof schemaCreator).toBe('function');
+    });
+
+    it('Should create schema when call curring', () => {
+      expect(schemaCreator()).toBeInstanceOf(schema.Entity);
+    });
+
+    it('Should schema has correct key', () => {
+      expect(schemaCreator().key).toBe('foo');
+    });
+  });
+
+  describe('configureNormalizeEntityStation()', () => {
+    function configure<V>(callback: (configure: ReturnType<typeof configureNormalizeEntityStation>) => V) {
+      const users = createEntityModel<User>('users')();
+      const comments = createEntityModel<Comment>('comments')(self => ({
+        author: users,
+        reply_preview: [self]
+      }));
+      const config = configureNormalizeEntityStation({
+        users,
+        comments
+      });
+      let hook: RenderHookResult<unknown, V>;
+      hook = renderHook(() => {
+        config.useNormalizeEntity('comments', MOCK_COMMENT_DATA);
+        return callback(config);
+      });
+      return hook!;
+    }
+
+    describe('Test useEntitys', () => {
+      it('Should entityRecord have correct entity lengths', () => {
+        const hook = configure(config => {
+          const entities = config.useEntitys();
+          return {
+            entities,
+          }
+        });
+        expect(Object.keys(hook.result.current.entities.users)).toHaveLength(2);
+        expect(Object.keys(hook.result.current.entities.comments)).toHaveLength(4);
+      });
+    });
+
+    describe('Test useDenormalize', () => {
+      describe('When give single value', () => {
+        it('Should return & update correct single value', () => {
+          const hook = configure(config => {
+            const [singleUser, setUser] = config.useDenormalize('users', 1);
+            const [comment] = config.useDenormalize('comments', 1);
+            return {
+              singleUser,
+              comment,
+              updateUser() {
+                setUser({
+                  ...singleUser as User,
+                  name: '무야호'
+                });
+              }
+            }
+          });
+          expect(hook.result.current.singleUser).toHaveProperty('name', 'Minwoo Kang');
+          expect(hook.result.current.comment).toHaveProperty(['author', 'name'], 'Minwoo Kang');
+          act(() => {
+            hook.result.current.updateUser();
+          });
+          expect(hook.result.current.singleUser).toHaveProperty('name', '무야호');
+          expect(hook.result.current.comment).toHaveProperty(['author', 'name'], '무야호');
+        });
+      });
+
+      describe('When give array value', () => {
+        it('Should return correct muliple value', () => {
+          const commentIds = [1, 2];
+          const hook = configure(config => {
+            const [comments] = config.useDenormalize('comments', commentIds);
+            return {
+              comments,
+            }
+          });
+          expect(hook.result.current.comments).toHaveLength(2);
+          expect(hook.result.current.comments).toHaveProperty([0, 'author', 'name'], 'Minwoo Kang');
+          expect(hook.result.current.comments).toHaveProperty([1, 'author', 'name'], 'BTS');
+        });
+      });
+    });
+  });
+});
