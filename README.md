@@ -39,7 +39,7 @@ export interface Post {
 
 ```ts
 // src/entity.ts
-import { configureNormalizeEntityStation } from 'react-entity-normalize-station';
+import { configureNormalizeEntityStation, createEntityModel } from 'react-entity-normalize-station';
 
 const users = createEntityModel<User>('users')();
 const comments = createEntityModel<Comment>('comments')(self => ({
