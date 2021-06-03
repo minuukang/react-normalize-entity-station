@@ -39,7 +39,7 @@ export interface Post {
 
 ```ts
 // src/entity.ts
-import { configureNormalizeEntityStation } from 'react-entity-normalize-station';
+import { configureNormalizeEntityStation, createEntityModel } from 'react-entity-normalize-station';
 
 const users = createEntityModel<User>('users')();
 const comments = createEntityModel<Comment>('comments')(self => ({
@@ -75,7 +75,7 @@ import {
 import { useQuery, useMutation } from 'react-query';
 
 declare const fetchPosts: () => Promise<Post[]>;
-declare const toggleLikePost: (postId: number) => Promise<Post[]>;
+declare const toggleLikePost: (postId: number) => Promise<void>;
 
 function Post ({ post }: { post: Post }) {
   const [, setPost] = useDenormalize('posts', post.id);
