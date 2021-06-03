@@ -61,11 +61,11 @@ export function configureNormalizeEntityStation<
   function produceEntity<
     K extends EntityKey,
     R extends EntityRecord<Entities>[K]
-  >(name: K, callback: R | ((state: Draft<R>) => never)) {
+  >(name: K, callback: R | ((state: Draft<R>) => void | undefined | Draft<R>)) {
     const entities = entityStore.getState();
-    const targetEntities = entities[name];
+    const targetEntities = entities[name] as R;
     const resultEntities = typeof callback === 'function'
-      ? produce(targetEntities, callback)
+      ? produce<R>(targetEntities, callback)
       : merge(targetEntities, callback);
     if (!equal(resultEntities, targetEntities)) {
       entityStore.setState({
