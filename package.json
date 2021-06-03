@@ -1,6 +1,6 @@
 {
   "name": "react-entity-normalize-station",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "normalize & denormalize entity with normalizr, jotai use react hook!",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -36,7 +36,9 @@
   "dependencies": {
     "deep-equal": "^2.0.5",
     "deepmerge": "^4.2.2",
+    "immer": "^9.0.2",
     "jotai": "^0.16.7",
-    "normalizr": "^3.6.1"
+    "normalizr": "^3.6.1",
+    "zustand": "^3.5.1"
   }
 }

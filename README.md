@@ -77,8 +77,8 @@ import { useQuery, useMutation } from 'react-query';
 declare const fetchPosts: () => Promise<Post[]>;
 declare const toggleLikePost: (postId: number) => Promise<void>;
 
-function Post ({ post }: { post: Post }) {
-  const [, setPost] = useDenormalize('posts', post.id);
+function Post ({ postId }: { postId: number; }) {
+  const [post, setPost] = useDenormalize('posts', postId);
   function toggleLike () {
     setPost({
       ...post,

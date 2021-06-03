@@ -1,7 +1,10 @@
 import { schema, SchemaObject, normalize as normalize$, denormalize, NormalizedSchema } from 'normalizr';
 import { atom, useAtom } from 'jotai';
 import { useCallback, useEffect, useMemo } from 'react';
-import { atomFamily, useAtomValue, useUpdateAtom } from 'jotai/utils';
+import createStore from 'zustand/vanilla';
+import produce, { Draft } from 'immer';
+import { atomWithStore } from 'jotai/zustand';
+import { useAtomValue, useUpdateAtom } from 'jotai/utils';
 import merge from 'deepmerge';
 import equal from 'deep-equal';
 
@@ -47,26 +50,47 @@ export function configureNormalizeEntityStation<
     return normalize$(data, Array.isArray(data) ? [entityModels[name]] : entityModels[name]);
   }
 
-  const entityAtoms = atomFamily((name: EntityKey) => atom(initialEntityRecord?.[name] || {} as EntityRecord<Entities>[EntityKey]));
+  const entityStore = createStore(() => Object.keys(entityModels).reduce((result, key) => {
+    return {
+      ...result,
+      [key]: {}
+    }
+  }, {} as EntityRecord<Entities>));
+  const entityAtoms = atomWithStore(entityStore);
+
+  function produceEntity<
+    K extends EntityKey,
+    R extends EntityRecord<Entities>[K]
+  >(name: K, callback: R | ((state: Draft<R>) => never)) {
+    const entities = entityStore.getState();
+    const targetEntities = entities[name];
+    const resultEntities = typeof callback === 'function'
+      ? produce(targetEntities, callback)
+      : merge(targetEntities, callback);
+    if (!equal(resultEntities, targetEntities)) {
+      entityStore.setState({
+        ...entities,
+        [name]: resultEntities
+      });
+    }
+  }
 
   const entitySelector = atom<EntityRecord<Entities>, EntityRecord<Entities>>(
-    get => Object.keys(entityModels).reduce((result, key) => ({
-      ...result,
-      [key]: get(entityAtoms(key as EntityKey))
-    }), {} as EntityRecord<Entities>),
-    (get, set, newValue) => {
+    get => get(entityAtoms),
+    (_get, _set, newValue) => {
       for (const [key, entities] of Object.entries(newValue)) {
-        const entityAtom = entityAtoms(key as EntityKey);
-        for (const [id, value] of Object.entries(entities)) {
-          const entityItems = get(entityAtom);
-          const entityValue = entityItems[id];
-          if (!entityValue || !equal(entityValue, value)) {
-            set(entityAtom, {
-              ...entityItems,
-              [id]: entityValue ? merge(entityValue, value as EntitySchemaWithDefinition<unknown, unknown>) : value
-            });
-          }
-        }
+        produceEntity(key as EntityKey, entities);
+        // const entityAtom = entityAtoms(key as EntityKey);
+        // for (const [id, value] of Object.entries(entities)) {
+        //   const entityItems = get(entityAtom);
+        //   const entityValue = entityItems[id];
+        //   if (!entityValue || !equal(entityValue, value)) {
+        //     set(entityAtom, {
+        //       ...entityItems,
+        //       [id]: entityValue ? merge(entityValue, value as EntitySchemaWithDefinition<unknown, unknown>) : value
+        //     });
+        //   }
+        // }
       }
     }
   );
@@ -131,6 +155,7 @@ export function configureNormalizeEntityStation<
     useDenormalize,
     useNormalizeEntity,
     useNormalizeHandler,
-    useEntitys
+    useEntitys,
+    produceEntity
   };
 }

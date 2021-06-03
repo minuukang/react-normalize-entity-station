@@ -1,5 +1,6 @@
 import { schema } from 'normalizr';
 import { act, renderHook, RenderHookResult } from '@testing-library/react-hooks';
+import { Draft } from 'immer';
 
 import { createEntityModel, configureNormalizeEntityStation } from './index';
 import { User, Comment, MOCK_COMMENT_DATA } from './__mocks__';
@@ -91,6 +92,51 @@ describe('NormalizeEntityStation', () => {
             hook.result.current.normalizeHandler('users', {
               id: 1,
               name: 'Minwoo Kang'
+            });
+          });
+          expect(oldUser === hook.result.current.user).toBe(true);
+        });
+      });
+    });
+
+    describe('Test produceEntity', () => {
+      let produce: any;
+      let hook: RenderHookResult<unknown, { user: User }>;
+
+      beforeEach(() => {
+        hook = configure(config => {
+          const [user] = config.useDenormalize('users', 1);
+          produce = config.produceEntity;
+          return {
+            user: user as User,
+          }
+        });
+      });
+
+      describe('When entityRecord is changed', () => {
+        it('Should normalizeEntity result reference is changed', () => {
+          const oldUser = hook.result.current.user;
+          act(() => {
+            produce('users', (users: Draft<Record<string, User>>) => {
+              const user = users[1];
+              if (user) {
+                user.name = '메누캉'
+              }
+            });
+          });
+          expect(oldUser === hook.result.current.user).toBe(false);
+        });
+      });
+
+      describe('When entityRecord is not changed', () => {
+        it('Should normalizeEntity result reference is keeped', () => {
+          const oldUser = hook.result.current.user;
+          act(() => {
+            produce('users', (users: Draft<Record<string, User>>) => {
+              const user = users[1];
+              if (user) {
+                user.name = 'Minwoo Kang'
+              }
             });
           });
           expect(oldUser === hook.result.current.user).toBe(true);
