@@ -8,6 +8,7 @@ import { useAtomValue, useUpdateAtom } from 'jotai/utils';
 import merge from 'deepmerge';
 import equal from 'deep-equal';
 
+const overwriteMerge = (_destinationArray: unknown[], sourceArray: unknown[]) => sourceArray;
 export interface EntitySchemaWithDefinition<T, D> extends schema.Entity<T> {
   $definition: D;
 }
@@ -66,7 +67,7 @@ export function configureNormalizeEntityStation<
     const targetEntities = entities[name] as R;
     const resultEntities = typeof callback === 'function'
       ? produce<R>(targetEntities, callback)
-      : merge(targetEntities, callback);
+      : merge(targetEntities, callback, { arrayMerge: overwriteMerge });
     if (!equal(resultEntities, targetEntities)) {
       entityStore.setState({
         ...entities,
@@ -80,17 +81,6 @@ export function configureNormalizeEntityStation<
     (_get, _set, newValue) => {
       for (const [key, entities] of Object.entries(newValue)) {
         produceEntity(key as EntityKey, entities);
-        // const entityAtom = entityAtoms(key as EntityKey);
-        // for (const [id, value] of Object.entries(entities)) {
-        //   const entityItems = get(entityAtom);
-        //   const entityValue = entityItems[id];
-        //   if (!entityValue || !equal(entityValue, value)) {
-        //     set(entityAtom, {
-        //       ...entityItems,
-        //       [id]: entityValue ? merge(entityValue, value as EntitySchemaWithDefinition<unknown, unknown>) : value
-        //     });
-        //   }
-        // }
       }
     }
   );
