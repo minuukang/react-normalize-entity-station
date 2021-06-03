@@ -57,6 +57,47 @@ describe('NormalizeEntityStation', () => {
       });
     });
 
+    describe('Test useNormalizeHandler', () => {
+      let hook: RenderHookResult<unknown, { user: User; normalizeHandler(k: string, user: User): void; }>;
+
+      beforeEach(() => {
+        hook = configure(config => {
+          const normalizeHandler = config.useNormalizeHandler();
+          const [user] = config.useDenormalize('users', 1);
+          return {
+            user: user as User,
+            normalizeHandler
+          }
+        });
+      });
+
+      describe('When entityRecord is changed', () => {
+        it('Should normalizeEntity result reference is changed', () => {
+          const oldUser = hook.result.current.user;
+          act(() => {
+            hook.result.current.normalizeHandler('users', {
+              id: 1,
+              name: '메누캉'
+            });
+          });
+          expect(oldUser === hook.result.current.user).toBe(false);
+        });
+      });
+
+      describe('When entityRecord is not changed', () => {
+        it('Should normalizeEntity result reference is keeped', () => {
+          const oldUser = hook.result.current.user;
+          act(() => {
+            hook.result.current.normalizeHandler('users', {
+              id: 1,
+              name: 'Minwoo Kang'
+            });
+          });
+          expect(oldUser === hook.result.current.user).toBe(true);
+        });
+      });
+    });
+
     describe('Test useDenormalize', () => {
       describe('When give single value', () => {
         it('Should return & update correct single value', () => {

@@ -3,6 +3,7 @@ import { atom, useAtom } from 'jotai';
 import { useCallback, useEffect, useMemo } from 'react';
 import { atomFamily, useAtomValue, useUpdateAtom } from 'jotai/utils';
 import merge from 'deepmerge';
+import equal from 'deep-equal';
 
 export interface EntitySchemaWithDefinition<T, D> extends schema.Entity<T> {
   $definition: D;
@@ -54,9 +55,18 @@ export function configureNormalizeEntityStation<
       [key]: get(entityAtoms(key as EntityKey))
     }), {} as EntityRecord<Entities>),
     (get, set, newValue) => {
-      for (const [key, value] of Object.entries(newValue)) {
+      for (const [key, entities] of Object.entries(newValue)) {
         const entityAtom = entityAtoms(key as EntityKey);
-        set(entityAtom, merge(get(entityAtom), value));
+        for (const [id, value] of Object.entries(entities)) {
+          const entityItems = get(entityAtom);
+          const entityValue = entityItems[id];
+          if (!entityValue || !equal(entityValue, value)) {
+            set(entityAtom, {
+              ...entityItems,
+              [id]: entityValue ? merge(entityValue, value as EntitySchemaWithDefinition<unknown, unknown>) : value
+            });
+          }
+        }
       }
     }
   );
