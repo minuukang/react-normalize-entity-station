@@ -34,7 +34,7 @@ type GetModelFromEntity<E> = E extends schema.Entity<infer T> ? T : never;
 
 export type EntityRecord<E extends Record<string, EntitySchemaWithDefinition<unknown, unknown>>> = {
   [key in keyof E]: Partial<Record<PropertyKey, Omit<GetModelFromEntity<E[key]>, keyof E[key]['$definition']> & {
-    [key2 in keyof E[key]['$definition']]: PropertyKey;
+    [key2 in keyof E[key]['$definition']]: E[key]['$definition'][key2] extends unknown[] ? PropertyKey[] : PropertyKey;
   }>>;
 }
 
