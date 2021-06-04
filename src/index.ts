@@ -1,4 +1,4 @@
-import { schema, SchemaObject, normalize as normalize$, denormalize, NormalizedSchema } from 'normalizr';
+import { schema, SchemaObject, normalize as normalize$, denormalize as denormalize$ } from 'normalizr';
 import { atom, useAtom, Provider } from 'jotai';
 import { useMemo, FC, createElement, useEffect } from 'react';
 import createStore from 'zustand/vanilla';
@@ -55,6 +55,13 @@ export function configureNormalizeEntityStation<
   const entityAtoms = atomWithStore(entityStore);
   entityAtoms.scope = LIBRARY_SCOPE;
 
+  function getModel(name: EntityKey, data: unknown | unknown[]) {
+    if (!entityModels[name]) {
+      throw new Error(`Entity model [${name}] is not defined! Check wrong letter or configureNormalizeEntityStation()`);
+    }
+    return Array.isArray(data) ? [entityModels[name]] : entityModels[name];
+  }
+
   function normalize<
     K extends EntityKey,
     T extends GetModelFromEntity<Entities[K]>,
@@ -63,7 +70,7 @@ export function configureNormalizeEntityStation<
     if (!entityModels[name]) {
       throw new Error(`Entity model [${name}] is not defined! Check wrong letter or configureNormalizeEntityStation()`);
     }
-    const model = Array.isArray(data) ? [entityModels[name]] : entityModels[name];
+    const model = getModel(name, data);
     const { result, entities } = normalize$<
       T,
       EntityRecord<Entities>,
@@ -75,6 +82,17 @@ export function configureNormalizeEntityStation<
       entityStore.setState(newEntityState);
     }
     return result;
+  }
+
+  function denormalize<
+    K extends EntityKey,
+    D extends PropertyKey | PropertyKey[],
+    M extends GetModelFromEntity<Entities[K]>,
+    R extends D extends unknown[] ? M[] : (M | undefined)
+  >(name: K, data: D, entities?: EntityRecord<Entities>): R {
+    const model = getModel(name, data);
+    const result = denormalize$(data, model, entities || entityStore.getState());
+    return Array.isArray(result) ? result.filter(Boolean) : result;
   }
 
   function produceEntity<
@@ -102,12 +120,7 @@ export function configureNormalizeEntityStation<
   >(name: K, data: D) {
     const $denormalizeAtom = atom<R, R>(
       (get) => {
-        const entityRecord = get(entityAtoms);
-        if (!entityModels[name]) {
-          throw new Error(`Entity model [${name}] is not defined! Check wrong letter or configureNormalizeEntityStation()`);
-        }
-        const result = denormalize(data, Array.isArray(data) ? [entityModels[name]] : entityModels[name], entityRecord);
-        return Array.isArray(result) ? result.filter(Boolean) : result;
+        return denormalize(name, data, get(entityAtoms)) as R;
       },
       (_get, _set, update) => {
         if (update) {
@@ -152,6 +165,7 @@ export function configureNormalizeEntityStation<
 
   return {
     normalize,
+    denormalize,
     useDenormalize,
     useNormalizeEntity,
     useEntitys,
