@@ -1,9 +1,10 @@
-import { schema } from 'normalizr';
+import { schema, normalize } from 'normalizr';
 import { act, renderHook, RenderHookResult } from '@testing-library/react-hooks';
 import { Draft } from 'immer';
 
 import { createEntityModel, configureNormalizeEntityStation } from './index';
 import { User, Comment, MOCK_COMMENT_DATA } from './__mocks__';
+import { createElement } from 'react';
 
 describe('NormalizeEntityStation', () => {
   describe('createEntityModel() spec', () => {
@@ -39,8 +40,12 @@ describe('NormalizeEntityStation', () => {
       });
       let hook: RenderHookResult<unknown, V>;
       hook = renderHook(() => {
-        config.useNormalizeEntity('comments', MOCK_COMMENT_DATA);
-        return callback(config);
+        return callback(config as unknown as ReturnType<typeof configureNormalizeEntityStation>);
+      }, {
+        wrapper: props => createElement(config.NormalizeEntityProvider, {
+          ...props,
+          initialEntityRecord: normalize(MOCK_COMMENT_DATA, [comments]).entities as any
+        })
       });
       return hook!;
     }
@@ -63,7 +68,7 @@ describe('NormalizeEntityStation', () => {
 
       beforeEach(() => {
         hook = configure(config => {
-          const normalizeHandler = config.useNormalizeHandler();
+          const normalizeHandler = config.normalize;
           const [user] = config.useDenormalize('users', 1);
           return {
             user: user as User,

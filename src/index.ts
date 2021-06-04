@@ -1,14 +1,18 @@
 import { schema, SchemaObject, normalize as normalize$, denormalize, NormalizedSchema } from 'normalizr';
-import { atom, useAtom } from 'jotai';
-import { useCallback, useEffect, useMemo } from 'react';
+import { atom, useAtom, Provider } from 'jotai';
+import { useMemo, FC, createElement, useEffect } from 'react';
 import createStore from 'zustand/vanilla';
 import produce, { Draft } from 'immer';
 import { atomWithStore } from 'jotai/zustand';
-import { useAtomValue, useUpdateAtom } from 'jotai/utils';
-import merge from 'deepmerge';
-import equal from 'deep-equal';
+import { useAtomValue } from 'jotai/utils';
+import deepMerge from 'deepmerge';
+import deepEqual from 'deep-equal';
 
 const overwriteMerge = (_destinationArray: unknown[], sourceArray: unknown[]) => sourceArray;
+
+function merge<V>(a: V, b: V): V {
+  return deepMerge(a, b, { arrayMerge: overwriteMerge });
+}
 export interface EntitySchemaWithDefinition<T, D> extends schema.Entity<T> {
   $definition: D;
 }
@@ -34,22 +38,13 @@ export type EntityRecord<E extends Record<string, EntitySchemaWithDefinition<unk
   }>>;
 }
 
+const LIBRARY_SCOPE = '$$react-entity-normalize-station';
+
 export function configureNormalizeEntityStation<
   Entities extends Record<string, EntitySchemaWithDefinition<unknown, unknown>>,
   EntityKey extends keyof Entities
->(entityModelCreator: Entities | ((createModel: typeof createEntityModel) => Entities), initialEntityRecord?: EntityRecord<Entities>) {
+>(entityModelCreator: Entities | ((createModel: typeof createEntityModel) => Entities)) {
   const entityModels = typeof entityModelCreator === 'function' ? entityModelCreator(createEntityModel) : entityModelCreator;
-
-  function normalize<
-    K extends EntityKey,
-    T extends GetModelFromEntity<Entities[K]>,
-    D extends T | T[]
-  >(name: K, data: D): NormalizedSchema<EntityRecord<Entities>, D extends unknown[] ? PropertyKey[] : PropertyKey> {
-    if (!entityModels[name]) {
-      throw new Error(`Entity model [${name}] is not defined! Check wrong letter or configureNormalizeEntityStation()`);
-    }
-    return normalize$(data, Array.isArray(data) ? [entityModels[name]] : entityModels[name]);
-  }
 
   const entityStore = createStore(() => Object.keys(entityModels).reduce((result, key) => {
     return {
@@ -58,6 +53,29 @@ export function configureNormalizeEntityStation<
     }
   }, {} as EntityRecord<Entities>));
   const entityAtoms = atomWithStore(entityStore);
+  entityAtoms.scope = LIBRARY_SCOPE;
+
+  function normalize<
+    K extends EntityKey,
+    T extends GetModelFromEntity<Entities[K]>,
+    D extends T | T[]
+  >(name: K, data: D) {
+    if (!entityModels[name]) {
+      throw new Error(`Entity model [${name}] is not defined! Check wrong letter or configureNormalizeEntityStation()`);
+    }
+    const model = Array.isArray(data) ? [entityModels[name]] : entityModels[name];
+    const { result, entities } = normalize$<
+      T,
+      EntityRecord<Entities>,
+      D extends unknown[] ? PropertyKey[] : PropertyKey
+    >(data, model);
+    const entityState = entityStore.getState();
+    const newEntityState = merge(entityState, entities);
+    if (!deepEqual(entityState, newEntityState)) {
+      entityStore.setState(newEntityState);
+    }
+    return result;
+  }
 
   function produceEntity<
     K extends EntityKey,
@@ -67,8 +85,8 @@ export function configureNormalizeEntityStation<
     const targetEntities = entities[name] as R;
     const resultEntities = typeof callback === 'function'
       ? produce<R>(targetEntities, callback)
-      : merge(targetEntities, callback, { arrayMerge: overwriteMerge });
-    if (!equal(resultEntities, targetEntities)) {
+      : merge(targetEntities, callback);
+    if (!deepEqual(resultEntities, targetEntities)) {
       entityStore.setState({
         ...entities,
         [name]: resultEntities
@@ -76,37 +94,29 @@ export function configureNormalizeEntityStation<
     }
   }
 
-  const entitySelector = atom<EntityRecord<Entities>, EntityRecord<Entities>>(
-    get => get(entityAtoms),
-    (_get, _set, newValue) => {
-      for (const [key, entities] of Object.entries(newValue)) {
-        produceEntity(key as EntityKey, entities);
-      }
-    }
-  );
-
   function createEntityDenormalizeSelector<
     K extends EntityKey,
     D extends PropertyKey | PropertyKey[],
     M extends GetModelFromEntity<Entities[K]>,
     R extends D extends unknown[] ? M[] : (M | undefined)
   >(name: K, data: D) {
-    return atom<R, R>(
+    const $denormalizeAtom = atom<R, R>(
       (get) => {
-        const entityRecord = get(entitySelector);
+        const entityRecord = get(entityAtoms);
         if (!entityModels[name]) {
           throw new Error(`Entity model [${name}] is not defined! Check wrong letter or configureNormalizeEntityStation()`);
         }
         const result = denormalize(data, Array.isArray(data) ? [entityModels[name]] : entityModels[name], entityRecord);
         return Array.isArray(result) ? result.filter(Boolean) : result;
       },
-      (_get, set, update) => {
+      (_get, _set, update) => {
         if (update) {
-          const { entities } = normalize(name, update!);
-          set(entitySelector, entities);
+          normalize(name, update!);
         }
       }
     );
+    $denormalizeAtom.scope = LIBRARY_SCOPE;
+    return $denormalizeAtom;
   }
 
   function useDenormalize<
@@ -118,34 +128,34 @@ export function configureNormalizeEntityStation<
   }
 
   function useNormalizeEntity<K extends EntityKey, M extends GetModelFromEntity<Entities[K]>, D extends M | M[]>(name: K, data: D) {
-    const setEntityRecord = useUpdateAtom(entitySelector);
     const normalizeResult = useMemo(() => normalize(name, data), [name, data]);
-
-    useEffect(() => {
-      setEntityRecord(normalizeResult.entities);
-    }, [normalizeResult]);
-
-    return useDenormalize(name, normalizeResult.result);
-  }
-
-  function useNormalizeHandler () {
-    const setEntityRecord = useUpdateAtom(entitySelector);
-    return useCallback(<K extends EntityKey, M extends GetModelFromEntity<Entities[K]>, D extends M | M[]>(name: K, data: D) => {
-      const { result, entities } = normalize(name, data);
-      setEntityRecord(entities);
-      return result;
-    }, [setEntityRecord]);
+    return useDenormalize(name, normalizeResult);
   }
 
   function useEntitys () {
-    return useAtomValue(entitySelector);
+    return useAtomValue(entityAtoms);
   }
 
+  const NormalizeEntityProvider: FC<{
+    initialEntityRecord?: EntityRecord<Entities>
+  }> = ({ initialEntityRecord, ...props }) => {
+    useEffect(() => {
+      if (initialEntityRecord) {
+        entityStore.setState(initialEntityRecord);
+      }
+    }, []);
+    return createElement(Provider, {
+      ...props,
+      scope: LIBRARY_SCOPE
+    });
+  };
+
   return {
+    normalize,
     useDenormalize,
     useNormalizeEntity,
-    useNormalizeHandler,
     useEntitys,
-    produceEntity
+    produceEntity,
+    NormalizeEntityProvider
   };
 }
