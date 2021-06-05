@@ -117,25 +117,6 @@ export default Example () {
 ```
 
 ## API
-
-- [React entity normalize station](#react-entity-normalize-station)
-  - [Install](#install)
-  - [Example](#example)
-    - [Interface](#interface)
-    - [Configure entity station](#configure-entity-station)
-    - [Usage (fetch data with react-query)](#usage-fetch-data-with-react-query)
-  - [API](#api)
-    - [`createEntityModel<T>(name): (definition, options) => Entity`](#createentitymodeltname-definition-options--entity)
-    - [Type `EntityRecord`](#type-entityrecord)
-    - [`configureNormalizeEntityStation(models) => EntityStation`](#configurenormalizeentitystationmodels--entitystation)
-      - [EntityStation.`entityStore`](#entitystationentitystore)
-      - [EntityStation.`normalize(modelKey: EntityKey, data: Model | Model[]) => IdType | IdType[]`](#entitystationnormalizemodelkey-entitykey-data-model--model--idtype--idtype)
-      - [EntityStation.`denormalize(modelKey: EntityKey, data: IdType | IdType[]) => (Model | undefined) | Model[]`](#entitystationdenormalizemodelkey-entitykey-data-idtype--idtype--model--undefined--model)
-      - [EnityStation.`produceEntity(modelKey: EntityKey, callback: (records: Record<IdType, NormalizeModel>) => unknown) => void`](#enitystationproduceentitymodelkey-entitykey-callback-records-recordidtype-normalizemodel--unknown--void)
-      - [EntityStation.`useNormalizeEntity(modelKey: EntityKey, data: Model | Model[]) => [(Model | undefined) | Model[]), setter]`](#entitystationusenormalizeentitymodelkey-entitykey-data-model--model--model--undefined--model-setter)
-      - [EntityStation.`useDenormalize(modelKey: EntityKey, data: IdType | IdType[]) => [(Model | undefined) | Model[]), setter]`](#entitystationusedenormalizemodelkey-entitykey-data-idtype--idtype--model--undefined--model-setter)
-      - [EnityStation.`useEntitys(): EntityRecords`](#enitystationuseentitys-entityrecords)
-      - [EntityStation.`NormalizeEntityProvider({ initialEntityRecord: EntityRecord }): React.ComponentType`](#entitystationnormalizeentityprovider-initialentityrecord-entityrecord--reactcomponenttype)
 ### `createEntityModel<T>(name): (definition, options) => Entity`
 
 This function is type safe version of [`normalizr(new entity.Schema)`](https://github.com/paularmstrong/normalizr/blob/master/docs/api.md#entitykey-definition---options--). It will be use partial function to set model type at first generic, definition and options type inference at second function.
@@ -264,7 +245,7 @@ This function similar by EntityStation.`normalize`, but will return denormalize 
 import { useNormalizeEntity } from 'src/entity.ts';
 
 function CommentList () {
-  const commentResult = useSuspenseFetch('https://.../comments');
+  const commentResult = useSuspenseFetch('https://.../comments'); // This hook is psuedo of fetching data suspense & refresh
   const [comments, setComments] = useNormalizeEntity('comments', commentResult.data);
   const handleRefreshComment = useCallback(async () => {
     await commentResult.refresh();
