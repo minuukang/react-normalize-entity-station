@@ -36,7 +36,7 @@ export function configureNormalizeEntityStation<
   const station = configureNormalizeEntityStation$<Entities, EntityKey>(entityModelCreator);
   const { useEntitys, denormalize, normalize } = station;
 
-  function useEntityObservable<V extends Record<string, unknown>>(initailizer: () => V, subscribers: MobxEntitySubscriber<EntitiesModel, V>) {
+  function useEntityObservable<V>(initailizer: () => V, subscribers: MobxEntitySubscriber<EntitiesModel, V>) {
     const entities = useEntitys();
     const store = useLocalObservable<V>(() => {
       const storeObject = Object.assign(initailizer(), {
