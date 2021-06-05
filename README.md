@@ -118,17 +118,24 @@ export default Example () {
 
 ## API
 
-- [createEntityModel](#createEntityModel)
-- [EntityRecord](#EntityRecord)
-- [configureNormalizeEntityStation](#configureNormalizeEntityStation)
-  - [entityStore](#entityStore)
-  - [normalize](#normalize)
-  - [denormalize](#denormalize)
-  - [produceEntity](#produceEntity)
-  - [useNormalizeEntity](#useNormalizeEntity)
-  - [useDenormalize](#useDenormalize)
-  - [useEntitys](#useEntitys)
-  - [NormalizeEntityProvider](#NormalizeEntityProvider)
+- [React entity normalize station](#react-entity-normalize-station)
+  - [Install](#install)
+  - [Example](#example)
+    - [Interface](#interface)
+    - [Configure entity station](#configure-entity-station)
+    - [Usage (fetch data with react-query)](#usage-fetch-data-with-react-query)
+  - [API](#api)
+    - [`createEntityModel<T>(name): (definition, options) => Entity`](#createentitymodeltname-definition-options--entity)
+    - [Type `EntityRecord`](#type-entityrecord)
+    - [`configureNormalizeEntityStation(models) => EntityStation`](#configurenormalizeentitystationmodels--entitystation)
+      - [EntityStation.`entityStore`](#entitystationentitystore)
+      - [EntityStation.`normalize(modelKey: EntityKey, data: Model | Model[]) => IdType | IdType[]`](#entitystationnormalizemodelkey-entitykey-data-model--model--idtype--idtype)
+      - [EntityStation.`denormalize(modelKey: EntityKey, data: IdType | IdType[]) => (Model | undefined) | Model[]`](#entitystationdenormalizemodelkey-entitykey-data-idtype--idtype--model--undefined--model)
+      - [EnityStation.`produceEntity(modelKey: EntityKey, callback: (records: Record<IdType, NormalizeModel>) => unknown) => void`](#enitystationproduceentitymodelkey-entitykey-callback-records-recordidtype-normalizemodel--unknown--void)
+      - [EntityStation.`useNormalizeEntity(modelKey: EntityKey, data: Model | Model[]) => [(Model | undefined) | Model[]), setter]`](#entitystationusenormalizeentitymodelkey-entitykey-data-model--model--model--undefined--model-setter)
+      - [EntityStation.`useDenormalize(modelKey: EntityKey, data: IdType | IdType[]) => [(Model | undefined) | Model[]), setter]`](#entitystationusedenormalizemodelkey-entitykey-data-idtype--idtype--model--undefined--model-setter)
+      - [EnityStation.`useEntitys(): EntityRecords`](#enitystationuseentitys-entityrecords)
+      - [EntityStation.`NormalizeEntityProvider({ initialEntityRecord: EntityRecord }): React.ComponentType`](#entitystationnormalizeentityprovider-initialentityrecord-entityrecord--reactcomponenttype)
 ### `createEntityModel<T>(name): (definition, options) => Entity`
 
 This function is type safe version of [`normalizr(new entity.Schema)`](https://github.com/paularmstrong/normalizr/blob/master/docs/api.md#entitykey-definition---options--). It will be use partial function to set model type at first generic, definition and options type inference at second function.
@@ -299,7 +306,7 @@ function CommentLikeButton ({ commentId }: { commentId: number }) {
 }
 ```
 
-### EnityStation.`useEntitys(): EntityRecords`
+#### EnityStation.`useEntitys(): EntityRecords`
 
 If you want to use entity records at react hook, use this!
 
@@ -314,7 +321,7 @@ function useEntityUpdateDebug () {
 }
 ```
 
-### EntityStation.`NormalizeEntityProvider({ initialEntityRecord: EntityRecord }): React.ComponentType`
+#### EntityStation.`NormalizeEntityProvider({ initialEntityRecord: EntityRecord }): React.ComponentType`
 
 If you want to initial entity store(like using ssr), using this provider. This provider is not required when you don't need initial entity at your app.
 
