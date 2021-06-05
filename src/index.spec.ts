@@ -150,6 +150,18 @@ describe('NormalizeEntityStation', () => {
     });
 
     describe('Test useDenormalize', () => {
+      describe('When give undefined', () => {
+        it('Should return undefined', () => {
+          const hook = configure(config => {
+            const [comment] = config.useDenormalize('comments', undefined);
+            return {
+              comment,
+            }
+          });
+          expect(hook.result.current.comment).toBe(undefined);
+        });
+      });
+
       describe('When give single value', () => {
         it('Should return & update correct single value', () => {
           const hook = configure(config => {

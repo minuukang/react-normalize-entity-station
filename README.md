@@ -2,6 +2,8 @@
 
 **Simple and easy, type safe** normalize & denormalize entity building system with [`normalizr`](https://github.com/paularmstrong/normalizr), [`jotai`](https://github.com/pmndrs/jotai), [`zustand`](https://github.com/pmndrs/zustand) and react hook!
 
+| ✅ In this document; we call **EntityStation** is about build system(`configureNormalizeEntityStation`) result!
+
 ## Install
 
 ```bash
@@ -35,10 +37,10 @@ export interface Post {
 }
 ```
 
-### Configure entity station
+### Configure **EntityStation**
 
 ```ts
-// src/entity.ts
+// src/entity-station.ts
 import { configureNormalizeEntityStation, createEntityModel } from 'react-entity-normalize-station';
 
 const users = createEntityModel<User>('users')();
@@ -71,7 +73,7 @@ import {
   useEntitys,
   useNormalizeEntity,
   useNormalizeHandler
-} from './entity';
+} from './entity-station';
 import { useQuery, useMutation } from 'react-query';
 
 declare const fetchPosts: () => Promise<Post[]>;
@@ -116,6 +118,96 @@ export default Example () {
 }
 ```
 
+## MobX (`mobx-react-lite`) integration
+
+You can use this package with `mobx-react-lite`,  [`useLocalObservable`](https://github.com/mobxjs/mobx-react#uselocalobservable-hook) to connect entity station.
+
+**Step 1**, import `react-entity-normalize-station/mobx` to configure **EntityStation**! It will be add `useEntityObservable` at the default entity station
+
+```ts
+import { configureNormalizeEntityStation } from 'react-entity-normalize-station/mobx';
+
+// ... Model setting (users, comments, posts) ...
+
+export const { useEntityObservable } = configureNormalizeEntityStation({
+  users,
+  comments,
+  posts
+});
+```
+
+**Step 2**, You can use `useEntityObservable` similar like `useLocalObservable`. But be explicit what property is connect to normalize entity. Typescript will help property setting.
+
+```ts
+interface PostStoreInterface {
+  currentPosts: Posts[];
+  fetchPosts(): Promise<void>;
+}
+
+const StoreProvider = () => {
+  // const postStore = useLocalObservable(PostStore);
+  const postStore = useEntityObservable(PostStore, {
+    currentPosts: 'posts'
+  });
+  // ... set context provider
+};
+```
+
+Now, the **EntityStation** should intercept original property to change computed value. you can preservation your componentcode base to change it!
+
+### ⚠️ **Warning** to use MobX integration
+
+When using this integration, entity station will change observable value to computed value. That mean you can't use MobX magicall syntax. Let's find out migrate mobx store.
+
+#### Using array case
+
+When you want update the array, the reference will be change.
+
+```ts
+// Before
+runInAction(() => {
+  this.posts.push(newPost);
+});
+
+// After
+runInAction(() => {
+  this.posts = [...this.posts, newPost];
+});
+```
+
+#### Using object case
+
+When you want update the object, reference will be change or just use `normalize` or `produceEntity` from **EntityStation**.
+
+```ts
+// Before
+runInAction(() => {
+  this.post.isLike = true;
+});
+
+// After
+import { normalize, produceEntity } from 'src/entity-station.ts';
+
+runInAction(() => {
+  this.post = {
+    ...this.post,
+    isLike: true
+  }
+  // or
+  normalize('posts', {
+    ...this.post,
+    isLike: true
+  });
+  // or
+  produceEntity('posts', posts => {
+    const post = posts[this.post.id];
+    if (post) {
+      post.isLike = true;
+    }
+  });
+});
+```
+
 ## API
 ### `createEntityModel<T>(name): (definition, options) => Entity`
 
@@ -136,7 +228,7 @@ const comments = createEntityModel<Comment>('comments')(self => ({
 
 ### Type `EntityRecord`
 
-This type is interface of entityStore data. If you want to use this type at your project, can use like,
+This type is interface of `entityStore` data. If you want to use this type at your project, can use like,
 
 ```ts
 // src/entity.ts
@@ -147,12 +239,29 @@ const models = { users, comments }; // result of createEntityModel
 export type AppEntityRecord = EntityRecord<typeof models>;
 ```
 
-### `configureNormalizeEntityStation(models) => EntityStation`
+### Type `EntityModel`
 
-This function build entity store, normalize & denormalize functions, entity producer, react custom hooks, initail provider.
+This type is record of entity model. If you want to use this type at your project, can use like,
 
 ```ts
 // src/entity.ts
+import type { EntityModel } from 'react-entity-normalize-station';
+
+const models = { users, comments }; // result of createEntityModel
+
+export type AppEntityModel = EntityModel<typeof models>;
+
+// ...
+type UserTypeFromAppEntityModel = AppEntityModel['users']; // User
+type CommentTypeFromAppEntityModel = AppEntityModel['comments']; // User
+```
+
+### `configureNormalizeEntityStation(models) => EntityStation`
+
+This function build **EntityStation**. It's create entity store, normalize & denormalize functions, entity producer, react custom hooks, initail provider.
+
+```ts
+// src/entity-station.ts
 import { configureNormalizeEntityStation } from 'react-entity-normalize-station';
 
 export const {
@@ -175,7 +284,7 @@ export const {
 This store create by [`zustand/vanilla`](https://github.com/pmndrs/zustand#using-zustand-without-react). If you want to get state of entity record, subscribe entity change without react, use this store.
 
 ```ts
-import { entityStore } from 'src/entity.ts';
+import { entityStore } from 'src/entity-station.ts';
 
 const unsubscriber = entityStore.subsribe(entities => {
   console.debug('Entity update', { entities });
@@ -186,7 +295,7 @@ const unsubscriber = entityStore.subsribe(entities => {
 #### EntityStation.`normalize(modelKey: EntityKey, data: Model | Model[]) => IdType | IdType[]`
 
 ```ts
-import { normalize } from 'src/entity.ts';
+import { normalize } from 'src/entity-station.ts';
 
 declare const MOCK_COMMENT: Comment; // { id: number }
 declare const MOCK_USER: User; // { userId: string }
@@ -207,7 +316,7 @@ const userIds = normalize('users', [MOCK_USER]); // return `string[]`
 #### EntityStation.`denormalize(modelKey: EntityKey, data: IdType | IdType[]) => (Model | undefined) | Model[]`
 
 ```ts
-import { denormalize } from 'src/entity.ts';
+import { denormalize } from 'src/entity-station.ts';
 
 // When model id is number
 const comment = denormalize('comments', 1); // return `Comment | undefined`
@@ -226,7 +335,7 @@ const users = denormalize('users', ['asdf']); // return `User[]`
 This function is produce entity record by [`immer`](https://immerjs.github.io/immer/).
 
 ```ts
-import { produceEntity } from 'src/entity.ts';
+import { produceEntity } from 'src/entity-station.ts';
 
 produceEntity('comments', comments => {
   const comment = comments[1];
@@ -242,7 +351,7 @@ produceEntity('comments', comments => {
 This function similar by EntityStation.`normalize`, but will return denormalize result. You can use at react function component and set the data
 
 ```tsx
-import { useNormalizeEntity } from 'src/entity.ts';
+import { useNormalizeEntity } from 'src/entity-station.ts';
 
 function CommentList () {
   const commentResult = useSuspenseFetch('https://.../comments'); // This hook is psuedo of fetching data suspense & refresh

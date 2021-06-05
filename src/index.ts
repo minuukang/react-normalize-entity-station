@@ -13,6 +13,11 @@ const overwriteMerge = (_destinationArray: unknown[], sourceArray: unknown[]) =>
 function merge<V>(a: V, b: V): V {
   return deepMerge(a, b, { arrayMerge: overwriteMerge });
 }
+
+export type PartialDataAndArray<T> = (T | undefined) | T[];
+export type ToDataOrArray<S, T> = S extends unknown[] ? T[] : T;
+export type ToPartialDataOrArray<S, T> = S extends unknown[] ? T[] : (T | undefined);
+
 export interface EntitySchemaWithDefinition<T, D, _O> extends schema.Entity<T> {
   $definition: D;
 }
@@ -55,10 +60,9 @@ export type EntityRecord<E extends Record<string, EntitySchemaWithDefinition<unk
     > & {
       [key2 in keyof E[key]['$definition']]:
         key2 extends keyof GetModelFromEntity<E[key]>
-          ? (E[key]['$definition'][key2] extends unknown[] ? GetIdType<E[key]['$definition'][key2]>[] : GetIdType<E[key]['$definition'][key2]>) | (
+          ? ToDataOrArray<E[key]['$definition'][key2], GetIdType<E[key]['$definition'][key2]>> | (
             undefined extends GetModelFromEntity<E[key]>[key2] ? undefined : never
-          )
-          : never
+          ) : never
     }
   >>;
 };
@@ -105,7 +109,7 @@ export function configureNormalizeEntityStation<
     const { result, entities } = normalize$<
       T,
       EntityRecord<Entities>,
-      D extends unknown[] ? GetIdType<Entities[K]>[] : GetIdType<Entities[K]>
+      ToPartialDataOrArray<D, GetIdType<Entities[K]>>
     >(data, model);
     const entityState = entityStore.getState();
     const newEntityState = merge(entityState, entities);
@@ -117,9 +121,9 @@ export function configureNormalizeEntityStation<
 
   function denormalize<
     K extends EntityKey,
-    D extends GetIdType<Entities[K]> | GetIdType<Entities[K]>[],
+    D extends PartialDataAndArray<GetIdType<Entities[K]>>,
     M extends GetModelFromEntity<Entities[K]>,
-    R extends D extends unknown[] ? M[] : (M | undefined)
+    R extends ToPartialDataOrArray<D, M>
   >(name: K, data: D, entities?: EntityRecord<Entities>): R {
     const model = getModel(name, data);
     const result = denormalize$(data, model, entities || entityStore.getState());
@@ -145,13 +149,13 @@ export function configureNormalizeEntityStation<
 
   function createEntityDenormalizeSelector<
     K extends EntityKey,
-    D extends GetIdType<Entities[K]> | GetIdType<Entities[K]>[],
+    D extends PartialDataAndArray<GetIdType<Entities[K]>>,
     M extends GetModelFromEntity<Entities[K]>,
-    R extends D extends unknown[] ? M[] : (M | undefined)
+    R extends ToPartialDataOrArray<D, M>
   >(name: K, data: D) {
     const $denormalizeAtom = atom<R, R>(
       (get) => {
-        return denormalize(name, data, get(entityAtoms)) as R;
+        return data && denormalize(name, data!, get(entityAtoms)) as R;
       },
       (_get, _set, update) => {
         if (update) {
@@ -165,14 +169,18 @@ export function configureNormalizeEntityStation<
 
   function useDenormalize<
     K extends EntityKey,
-    D extends GetIdType<Entities[K]> | GetIdType<Entities[K]>[],
+    D extends PartialDataAndArray<GetIdType<Entities[K]>>
   >(name: K, data: D) {
     const denormalizeAtom = useMemo(() => createEntityDenormalizeSelector(name, data), [name, data]);
     return useAtom(denormalizeAtom);
   }
 
-  function useNormalizeEntity<K extends EntityKey, M extends GetModelFromEntity<Entities[K]>, D extends M | M[]>(name: K, data: D) {
-    const normalizeResult = useMemo(() => normalize(name, data), [name, data]);
+  function useNormalizeEntity<
+    K extends EntityKey,
+    M extends GetModelFromEntity<Entities[K]>,
+    D extends PartialDataAndArray<M>
+  >(name: K, data: D) {
+    const normalizeResult = useMemo(() => data && normalize(name, data!), [name, data]);
     return useDenormalize(name, normalizeResult);
   }
 
