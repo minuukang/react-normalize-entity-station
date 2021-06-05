@@ -109,7 +109,7 @@ export function configureNormalizeEntityStation<
     const { result, entities } = normalize$<
       T,
       EntityRecord<Entities>,
-      ToPartialDataOrArray<D, GetIdType<Entities[K]>>
+      ToDataOrArray<D, GetIdType<Entities[K]>>
     >(data, model);
     const entityState = entityStore.getState();
     const newEntityState = merge(entityState, entities);
