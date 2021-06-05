@@ -61,7 +61,13 @@ export type EntityRecord<E extends Record<string, EntitySchemaWithDefinition<unk
           : never
     }
   >>;
-}
+};
+
+export type EntityModel<E extends Record<string, EntitySchemaWithDefinition<unknown, unknown, unknown>>> = {
+  [K in keyof E]: E[K] extends EntitySchemaWithDefinition<infer M, unknown, unknown>
+    ? M
+    : never;
+};
 
 const LIBRARY_SCOPE = '$$react-entity-normalize-station';
 
@@ -99,7 +105,7 @@ export function configureNormalizeEntityStation<
     const { result, entities } = normalize$<
       T,
       EntityRecord<Entities>,
-      D extends unknown[] ? PropertyKey[] : PropertyKey
+      D extends unknown[] ? GetIdType<Entities[K]>[] : GetIdType<Entities[K]>
     >(data, model);
     const entityState = entityStore.getState();
     const newEntityState = merge(entityState, entities);
@@ -111,7 +117,7 @@ export function configureNormalizeEntityStation<
 
   function denormalize<
     K extends EntityKey,
-    D extends PropertyKey | PropertyKey[],
+    D extends GetIdType<Entities[K]> | GetIdType<Entities[K]>[],
     M extends GetModelFromEntity<Entities[K]>,
     R extends D extends unknown[] ? M[] : (M | undefined)
   >(name: K, data: D, entities?: EntityRecord<Entities>): R {
@@ -139,7 +145,7 @@ export function configureNormalizeEntityStation<
 
   function createEntityDenormalizeSelector<
     K extends EntityKey,
-    D extends PropertyKey | PropertyKey[],
+    D extends GetIdType<Entities[K]> | GetIdType<Entities[K]>[],
     M extends GetModelFromEntity<Entities[K]>,
     R extends D extends unknown[] ? M[] : (M | undefined)
   >(name: K, data: D) {
@@ -159,7 +165,7 @@ export function configureNormalizeEntityStation<
 
   function useDenormalize<
     K extends EntityKey,
-    D extends PropertyKey | PropertyKey[],
+    D extends GetIdType<Entities[K]> | GetIdType<Entities[K]>[],
   >(name: K, data: D) {
     const denormalizeAtom = useMemo(() => createEntityDenormalizeSelector(name, data), [name, data]);
     return useAtom(denormalizeAtom);
