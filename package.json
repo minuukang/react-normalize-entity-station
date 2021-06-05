@@ -1,12 +1,12 @@
 {
   "name": "react-entity-normalize-station",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "normalize & denormalize entity with normalizr, jotai use react hook!",
   "main": "index.js",
   "types": "index.d.ts",
   "scripts": {
     "test": "jest",
-    "build": "rm -rf dist && tsc && cp package.json dist",
+    "build": "rm -rf dist && tsc && cp package.json dist && cp README.md dist",
     "publish": "cd dist && npm publish"
   },
   "repository": {
