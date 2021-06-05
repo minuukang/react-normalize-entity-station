@@ -1,4 +1,4 @@
-import { schema, SchemaObject, normalize as normalize$, denormalize as denormalize$ } from 'normalizr';
+import { schema, SchemaValue, SchemaObject, normalize as normalize$, denormalize as denormalize$ } from 'normalizr';
 import { atom, useAtom, Provider } from 'jotai';
 import { useMemo, FC, createElement, useEffect } from 'react';
 import createStore from 'zustand/vanilla';
@@ -13,35 +13,60 @@ const overwriteMerge = (_destinationArray: unknown[], sourceArray: unknown[]) =>
 function merge<V>(a: V, b: V): V {
   return deepMerge(a, b, { arrayMerge: overwriteMerge });
 }
-export interface EntitySchemaWithDefinition<T, D> extends schema.Entity<T> {
+export interface EntitySchemaWithDefinition<T, D, _O> extends schema.Entity<T> {
   $definition: D;
 }
 
+export type GetIdType<E> = E extends Array<infer A> ? GetIdType<A> :
+  E extends EntitySchemaWithDefinition<infer T, infer _, infer O>
+    ? undefined extends O ? ('id' extends keyof T ? T['id'] : PropertyKey) : (
+      O extends EntityOptionsWithIdType<T> ? (
+        undefined extends O['idAttribute'] ? ('id' extends keyof T ? T['id'] : PropertyKey) : (
+          NonNullable<O['idAttribute']> extends keyof T ? T[NonNullable<O['idAttribute']>] : string
+        )
+      ) : PropertyKey
+    ) : PropertyKey;
+
+export interface EntityOptionsWithIdType<T> extends Omit<schema.EntityOptions<T>, 'idAttribute'> {
+  idAttribute?: keyof T | ((value: T, parent: unknown, key: string) => string);
+}
+
 export function createEntityModel<T>(name: string) {
-  return function<
-    D extends Record<string, unknown>,
-    O extends schema.EntityOptions<T>,
-  >(definition?: D | ((entity: schema.Entity<T>) => D), options?: O) {
-    const model = new schema.Entity<T>(name, undefined, options);
+  return <
+    D extends Record<string, SchemaValue<T>>,
+    O extends EntityOptionsWithIdType<T> | undefined = undefined,
+  >(definition?: D | ((entity: EntitySchemaWithDefinition<T, unknown, O>) => D), options?: O) => {
+    const model = new schema.Entity<T>(name, undefined, options as schema.EntityOptions<T>) as EntitySchemaWithDefinition<T, D, O>;
     if (definition) {
       model.define((typeof definition === 'function' ? definition(model) : definition) as SchemaObject<unknown>);
     }
-    return model as EntitySchemaWithDefinition<T, D>;
+    return model;
   }
 }
 
-type GetModelFromEntity<E> = E extends schema.Entity<infer T> ? T : never;
+export type GetModelFromEntity<E> = E extends EntitySchemaWithDefinition<infer T, infer _, infer _> ? T : never;
 
-export type EntityRecord<E extends Record<string, EntitySchemaWithDefinition<unknown, unknown>>> = {
-  [key in keyof E]: Partial<Record<PropertyKey, Omit<GetModelFromEntity<E[key]>, keyof E[key]['$definition']> & {
-    [key2 in keyof E[key]['$definition']]: E[key]['$definition'][key2] extends unknown[] ? PropertyKey[] : PropertyKey;
-  }>>;
+export type EntityRecord<E extends Record<string, EntitySchemaWithDefinition<unknown, unknown, unknown>>> = {
+  [key in keyof E]: Partial<Record<
+    PropertyKey,
+    Omit<
+      GetModelFromEntity<E[key]>,
+      keyof E[key]['$definition']
+    > & {
+      [key2 in keyof E[key]['$definition']]:
+        key2 extends keyof GetModelFromEntity<E[key]>
+          ? (E[key]['$definition'][key2] extends unknown[] ? GetIdType<E[key]['$definition'][key2]>[] : GetIdType<E[key]['$definition'][key2]>) | (
+            undefined extends GetModelFromEntity<E[key]>[key2] ? undefined : never
+          )
+          : never
+    }
+  >>;
 }
 
 const LIBRARY_SCOPE = '$$react-entity-normalize-station';
 
 export function configureNormalizeEntityStation<
-  Entities extends Record<string, EntitySchemaWithDefinition<unknown, unknown>>,
+  Entities extends Record<string, EntitySchemaWithDefinition<unknown, unknown, unknown>>,
   EntityKey extends keyof Entities
 >(entityModelCreator: Entities | ((createModel: typeof createEntityModel) => Entities)) {
   const entityModels = typeof entityModelCreator === 'function' ? entityModelCreator(createEntityModel) : entityModelCreator;
@@ -164,6 +189,7 @@ export function configureNormalizeEntityStation<
   };
 
   return {
+    entityStore,
     normalize,
     denormalize,
     useDenormalize,
