@@ -39,7 +39,7 @@ export interface EntityOptionsWithIdType<T> extends Omit<schema.EntityOptions<T>
 export function createEntityModel<T>(name: string) {
   return <
     D extends Record<string, SchemaValue<T>>,
-    O extends EntityOptionsWithIdType<T> | undefined = undefined,
+    O extends EntityOptionsWithIdType<T>
   >(definition?: D | ((entity: EntitySchemaWithDefinition<T, unknown, O>) => D), options?: O) => {
     const model = new schema.Entity<T>(name, undefined, options as schema.EntityOptions<T>) as EntitySchemaWithDefinition<T, D, O>;
     if (definition) {

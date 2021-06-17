@@ -1,6 +1,6 @@
 {
   "name": "react-entity-normalize-station",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "normalize & denormalize entity with normalizr, jotai use react hook!",
   "main": "index.js",
   "types": "index.d.ts",
