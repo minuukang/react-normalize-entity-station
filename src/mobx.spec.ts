@@ -25,31 +25,33 @@ describe('MobX integration test', () => {
 
       beforeEach(() => {
         const { useEntityObservable, useEntitys } = configureNormalizeEntityStation(models);
-        hook = renderHook(() => {
-          const entities = useEntitys();
-          const store = useEntityObservable(() => ({
-            comments: [] as Comment[],
-            fetchComments () {
-              runInAction(() => {
-                this.comments = MOCK_COMMENT_DATA;
-              });
-            },
-            appendComment (newComment: Comment) {
-              runInAction(() => {
-                this.comments = [
-                  ...this.comments,
-                  newComment
-                ];
-              });
-            }
-          }), {
-            comments: 'comments'
+        act(() => {
+          hook = renderHook(() => {
+            const entities = useEntitys();
+            const store = useEntityObservable(() => ({
+              comments: [] as Comment[],
+              fetchComments () {
+                runInAction(() => {
+                  this.comments = MOCK_COMMENT_DATA;
+                });
+              },
+              appendComment (newComment: Comment) {
+                runInAction(() => {
+                  this.comments = [
+                    ...this.comments,
+                    newComment
+                  ];
+                });
+              }
+            }), {
+              comments: 'comments'
+            });
+            return {
+              store,
+              entities,
+              comments
+            };
           });
-          return {
-            store,
-            entities,
-            comments
-          };
         });
       });
 

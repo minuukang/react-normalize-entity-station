@@ -39,13 +39,15 @@ describe('NormalizeEntityStation', () => {
         comments
       });
       let hook: RenderHookResult<unknown, V>;
-      hook = renderHook(() => {
-        return callback(config as unknown as ReturnType<typeof configureNormalizeEntityStation>);
-      }, {
-        wrapper: props => createElement(config.NormalizeEntityProvider, {
-          ...props,
-          initialEntityRecord: normalize(MOCK_COMMENT_DATA, [comments]).entities as any
-        })
+      act(() => {
+        hook = renderHook(() => {
+          return callback(config as unknown as ReturnType<typeof configureNormalizeEntityStation>);
+        }, {
+          wrapper: props => createElement(config.NormalizeEntityProvider, {
+            ...props,
+            initialEntityRecord: normalize(MOCK_COMMENT_DATA, [comments]).entities as any
+          })
+        });
       });
       return hook!;
     }
