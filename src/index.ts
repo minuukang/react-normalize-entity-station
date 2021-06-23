@@ -38,7 +38,7 @@ export interface EntityOptionsWithIdType<T> extends Omit<schema.EntityOptions<T>
 
 export function createEntityModel<T>(name: string) {
   return <
-    D extends Record<string, SchemaValue<T>>,
+    D extends SchemaObject<T> | {},
     O extends EntityOptionsWithIdType<T>
   >(definition?: D | ((entity: EntitySchemaWithDefinition<T, unknown, O>) => D), options?: O) => {
     const model = new schema.Entity<T>(name, undefined, options as schema.EntityOptions<T>) as EntitySchemaWithDefinition<T, D, O>;
@@ -89,6 +89,22 @@ export function configureNormalizeEntityStation<
   }, {} as EntityRecord<Entities>));
   const entityAtoms = atomWithStore(entityStore);
   entityAtoms.scope = LIBRARY_SCOPE;
+
+  function subscribe<
+    K extends EntityKey,
+    D extends PartialDataAndArray<GetIdType<Entities[K]>>
+  >(name: K, data: D, callback: () => void) {
+    const model = getModel(name, data);
+    return entityStore.subscribe((current, prev) => {
+      if (!!(Array.isArray(data) ? data.length : data)) {
+        const prevDenormalize = denormalize$(data, model, prev);
+        const currDenormalize = denormalize$(data, model, current);
+        if (!deepEqual(prevDenormalize, currDenormalize)) {
+          callback();
+        }
+      }
+    });
+  }
 
   function getModel(name: EntityKey, data: unknown | unknown[]) {
     if (!entityModels[name]) {
@@ -203,6 +219,7 @@ export function configureNormalizeEntityStation<
   };
 
   return {
+    subscribe,
     entityStore,
     normalize,
     denormalize,

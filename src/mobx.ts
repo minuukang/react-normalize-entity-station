@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { set, get, toJS, runInAction } from 'mobx';
 import { useLocalObservable } from 'mobx-react-lite';
 
@@ -7,7 +7,9 @@ import {
   createEntityModel,
   EntitySchemaWithDefinition,
   EntityModel,
-  GetModelFromEntity
+  GetModelFromEntity,
+  PartialDataAndArray,
+  GetIdType,
 } from './index';
 
 export * from './index';
@@ -31,47 +33,68 @@ const OBSERVER_PREFIX = '$$_ENTITY_STATION_MOBX_';
 export function configureNormalizeEntityStation<
   Entities extends Record<string, EntitySchemaWithDefinition<unknown, unknown, unknown>>,
   EntityKey extends keyof Entities,
-  EntitiesModel extends EntityModel<Entities>
+  EntitiesModel extends EntityModel<Entities>,
 >(entityModelCreator: Entities | ((createModel: typeof createEntityModel) => Entities)) {
   const station = configureNormalizeEntityStation$<Entities, EntityKey>(entityModelCreator);
-  const { useEntitys, denormalize, normalize } = station;
+  const { denormalize, normalize, subscribe } = station;
 
   function useEntityObservable<V>(initailizer: () => V, subscribers: MobxEntitySubscriber<EntitiesModel, V>) {
-    const entities = useEntitys();
+    const unsubscribersRef = useRef<{ unsubscriber?: ReturnType<typeof subscribe> }[]>([]);
     const store = useLocalObservable<V>(() => {
-      const storeObject = Object.assign(initailizer(), {
-        _updateEntity: 0
-      });
+      const storeObject = initailizer();
       for (const [observerKey, modelKey] of Object.entries(subscribers) as [keyof V, EntityKey][]) {
+        // Setting observer key
         const normalizeObserverKey = `${OBSERVER_PREFIX}${observerKey}`;
+        const normalizeUpdateKey = `${OBSERVER_PREFIX}${observerKey}__update`;
+
+        // Setting subscriber
+        const unsubscriberItem: { unsubscriber?: ReturnType<typeof subscribe> } = {};
+        const setWatchNormalize = (newValue: PartialDataAndArray<GetIdType<Entities[EntityKey]>>) => {
+          unsubscriberItem.unsubscriber = subscribe(modelKey, newValue, () => {
+            runInAction(() => {
+              set(store, {
+                [normalizeUpdateKey]: Math.random() // force update {observerKey}
+              });
+            });
+          });
+        }
+
+        const initialValue: PartialDataAndArray<GetIdType<Entities[EntityKey]>> = Array.isArray(storeObject[observerKey]) ? [] : undefined;
+        setWatchNormalize(initialValue);
+
         Object.assign(storeObject, {
-          [normalizeObserverKey]: Array.isArray(storeObject[observerKey]) ? [] : undefined
+          [normalizeObserverKey]: initialValue,
+          [normalizeUpdateKey]: 0
         });
+
         Object.defineProperty(storeObject, observerKey, {
           get() {
-            get(store, '_updateEntity'); // Trigger for update entitiy
+            get(store, normalizeUpdateKey); // Trigger for update entitiy
             return denormalize(modelKey, toJS(get(store, normalizeObserverKey)));
           },
-          set(newValue?: GetModelFromEntity<Entities[keyof Entities]>) {
+          set(newValue?: PartialDataAndArray<GetModelFromEntity<Entities[EntityKey]>>) {
             const jsValue = toJS(newValue);
             if (jsValue) {
+              unsubscriberItem.unsubscriber?.();
+              const normalizeValue = normalize(modelKey, jsValue);
+              setWatchNormalize(normalizeValue);
               set(store, {
-                [normalizeObserverKey]: normalize(modelKey, jsValue)
+                [normalizeObserverKey]: normalizeValue,
+                [normalizeUpdateKey]: Math.random()
               });
             }
           }
         });
+        unsubscribersRef.current.push(unsubscriberItem);
       }
       return storeObject;
     });
 
     useEffect(() => {
-      runInAction(() => {
-        set(store, {
-          _updateEntity: Math.random()
-        });
-      });
-    }, [entities]);
+      return () => {
+        unsubscribersRef.current.forEach(({ unsubscriber }) => unsubscriber?.());
+      };
+    }, []);
 
     return store;
   }

@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/minuukang/react-normalize-entity-station#readme",
   "devDependencies": {
+    "@testing-library/react": "^12.0.0",
     "@testing-library/react-hooks": "^7.0.0",
     "@types/deep-equal": "^1.0.1",
     "@types/jest": "^26.0.23",
