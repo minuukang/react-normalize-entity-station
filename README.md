@@ -426,3 +426,16 @@ function App(props) {
   );
 }
 ```
+
+#### EntityStation.`subscribe(modelKey: EntityKey, data: IdType | IdType[]): Unsubscriber(() => void)`
+
+If you want to subscribe change model data, you can use this subscriber. Return type is subscriber function.
+This function use at mobx integration.
+
+```tsx
+import { subscribe } from 'src/entity.ts';
+
+subscribe('comments', [1, 2, 3], () => {
+  console.log('Comment [1, 2, 3] is changed!');
+});
+```
