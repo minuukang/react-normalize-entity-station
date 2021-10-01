@@ -19,6 +19,9 @@ describe('MobX integration test', () => {
   const { useEntityObservable, useEntitys, produceEntity, entityStore } = configureNormalizeEntityStation(models);
   const useStore = () => useEntityObservable(() => ({
     comments: [] as Comment[],
+    get getterComments() {
+      return this.comments;
+    },
     fetchComments () {
       runInAction(() => {
         this.comments = MOCK_COMMENT_DATA;
