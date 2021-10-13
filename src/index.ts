@@ -179,7 +179,6 @@ export function configureNormalizeEntityStation<
         }
       }
     );
-    $denormalizeAtom.scope = LIBRARY_SCOPE;
     return $denormalizeAtom;
   }
 
@@ -188,7 +187,7 @@ export function configureNormalizeEntityStation<
     D extends PartialDataAndArray<GetIdType<Entities[K]>>
   >(name: K, data: D) {
     const denormalizeAtom = useMemo(() => createEntityDenormalizeSelector(name, data), [name, data]);
-    return useAtom(denormalizeAtom);
+    return useAtom(denormalizeAtom, LIBRARY_SCOPE);
   }
 
   function useNormalizeEntity<
@@ -201,7 +200,7 @@ export function configureNormalizeEntityStation<
   }
 
   function useEntitys () {
-    return useAtomValue(entityAtoms);
+    return useAtomValue(entityAtoms, LIBRARY_SCOPE);
   }
 
   const NormalizeEntityProvider: FC<{
